@@ -1,0 +1,16 @@
+node_modules/
+.DS_Store
+*.log
+
+# Model weights are large; download per README instead of committing.
+models/*.onnx
+models/*.bin
+models/*.tflite
+
+# Self-hosted onnxruntime-web wasm/mjs; downloaded from npm at setup time.
+vendor/ort/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp

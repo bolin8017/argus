@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Argus — the giant that watches your back</title>
+    <style>
+      :root { font-family: system-ui, sans-serif; background: #0f1115; color: #e8eaed; }
+      body { margin: 0; padding: 24px; max-width: 960px; margin-inline: auto; }
+      h1 { font-size: 1.25rem; font-weight: 600; }
+      p { color: #9aa0a6; line-height: 1.5; font-size: 0.9rem; }
+      code { background: #1a1d23; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Argus</h1>
+    <p>骨架就緒。下一步：在 <code>src/</code> 寫第一階段的 detector，並把 onnxruntime-web 與 yolo 模型放進 <code>vendor/</code> 和 <code>models/</code>。</p>
+    <p>啟動 <code>npm run dev</code> 後，本頁應該已開啟且回應為 <code>200</code>（且 <code>Cross-Origin-Opener-Policy</code> / <code>Cross-Origin-Embedder-Policy</code> header 已就位，讓 onnxruntime-web 的 threaded WASM 可用）。</p>
+  </body>
+</html>

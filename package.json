@@ -1,0 +1,13 @@
+{
+  "name": "argus",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Browser-only two-stage vision pipeline: person presence (Phase 1) -> face detail (Phase 2). The all-seeing giant that watches your back.",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
