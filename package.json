@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "vendor:ort": "node scripts/vendor-ort.mjs",
+    "model:fetch": "node scripts/fetch-model.mjs",
     "postinstall": "node scripts/vendor-ort.mjs"
   },
   "engines": {
