@@ -3,18 +3,156 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Argus — the giant that watches your back</title>
+    <title>Argus — Phase 1 (person detection)</title>
     <style>
-      :root { font-family: system-ui, sans-serif; background: #0f1115; color: #e8eaed; }
-      body { margin: 0; padding: 24px; max-width: 960px; margin-inline: auto; }
-      h1 { font-size: 1.25rem; font-weight: 600; }
-      p { color: #9aa0a6; line-height: 1.5; font-size: 0.9rem; }
-      code { background: #1a1d23; padding: 2px 6px; border-radius: 4px; }
+      :root {
+        color-scheme: dark;
+        --bg: #0f1115;
+        --fg: #e8eaed;
+        --muted: #9aa0a6;
+        --panel: #161a22;
+        --panel-2: #1f242e;
+        --accent: #22d3ee;
+        --danger: #f87171;
+        --ok: #34d399;
+      }
+      * { box-sizing: border-box; }
+      html, body { background: var(--bg); color: var(--fg); }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        margin: 0;
+        padding: 16px;
+        min-height: 100vh;
+      }
+      header {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+      header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+      header .sub { color: var(--muted); font-size: 0.85rem; }
+
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 16 / 9;
+      }
+      .stage video,
+      .stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .stage video {
+        /* Self-view mirroring. The detector reads the un-mirrored raw frame. */
+        transform: scaleX(-1);
+      }
+      .stage canvas {
+        /* Overlay handles its own mirror internally so labels stay readable. */
+        pointer-events: none;
+      }
+
+      .hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 2px 12px;
+        padding: 10px 12px;
+        background: rgba(15, 17, 21, 0.65);
+        backdrop-filter: blur(4px);
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: var(--fg);
+        z-index: 2;
+      }
+      .hud .k { color: var(--muted); }
+      .hud .v { font-weight: 600; }
+
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+        max-width: 1280px;
+        margin-inline: auto;
+      }
+      button {
+        appearance: none;
+        border: 1px solid #2a3140;
+        background: var(--panel);
+        color: var(--fg);
+        font: inherit;
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) { background: var(--panel-2); }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      #start { border-color: #1f5563; color: var(--accent); }
+
+      #status {
+        margin-left: 8px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      #status[data-tone="good"] { color: var(--ok); }
+      #status[data-tone="error"] { color: var(--danger); }
+
+      footer {
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        max-width: 1280px;
+        margin-inline: auto;
+      }
+      footer code {
+        background: var(--panel);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
     </style>
   </head>
   <body>
-    <h1>Argus</h1>
-    <p>骨架就緒。下一步：在 <code>src/</code> 寫第一階段的 detector，並把 onnxruntime-web 與 yolo 模型放進 <code>vendor/</code> 和 <code>models/</code>。</p>
-    <p>啟動 <code>npm run dev</code> 後，本頁應該已開啟且回應為 <code>200</code>（且 <code>Cross-Origin-Opener-Policy</code> / <code>Cross-Origin-Embedder-Policy</code> header 已就位，讓 onnxruntime-web 的 threaded WASM 可用）。</p>
+    <header>
+      <h1>Argus</h1>
+      <span class="sub">Phase 1 — person presence (YOLO11n + ByteTrack-Lite)</span>
+    </header>
+
+    <div class="stage">
+      <video id="video" muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div class="hud" aria-live="polite">
+        <span class="k">FPS</span>            <span class="v" id="hud-fps">—</span>
+        <span class="k">detect (ms)</span>    <span class="v" id="hud-detect-ms">—</span>
+        <span class="k">active tracks</span>  <span class="v" id="hud-tracks">0</span>
+        <span class="k">backend</span>        <span class="v" id="hud-backend">—</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="start">啟動</button>
+      <button id="stop" disabled>停止</button>
+      <span id="status">idle</span>
+    </div>
+
+    <footer>
+      Open the page over <code>http://localhost</code> (or HTTPS) and grant
+      webcam permission. On WebGPU-capable browsers (Chrome/Edge ≥ 113) the
+      backend will say <code>webgpu</code>; on Safari / Firefox without WebGPU
+      it falls back to threaded WASM (<code>wasm</code>).
+    </footer>
+
+    <script type="module" src="/src/app.js"></script>
   </body>
 </html>
