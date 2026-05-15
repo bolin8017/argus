@@ -4,9 +4,11 @@
 
 > 希臘神話裡永不闔眼的百眼巨人；在你看不到的地方，替你看著。
 
+[![CI](https://github.com/bolin8017/argus/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bolin8017/argus/actions/workflows/ci.yml)
+
 ## Continuous integration
 
-After you push to GitHub, **`.github/workflows/ci.yml`** runs `npm ci`, `npm run model:fetch`, and checks that ORT, Human, and YOLO artifacts exist. Replace branch filters if your default branch is not `main` / `master`.
+**`.github/workflows/ci.yml`** runs on `push` / `pull_request` to `main` or `master`: `npm ci`, `npm run model:fetch`, then verifies vendored ORT/Human files and `models/yolo11n.onnx`. Adjust branch filters if your default branch differs.
 
 ## Features
 
@@ -23,7 +25,7 @@ After you push to GitHub, **`.github/workflows/ci.yml`** runs `npm ci`, `npm run
 ## Quick start
 
 ```bash
-git clone <your-repo-url> argus && cd argus
+git clone https://github.com/bolin8017/argus.git && cd argus
 nvm use                    # optional: Node 24 per .nvmrc
 npm install                # vendors ORT + Human + TFJS wasm into vendor/
 npm run model:fetch        # downloads models/yolo11n.onnx (see models/README.md)

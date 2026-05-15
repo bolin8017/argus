@@ -3,6 +3,14 @@
   "version": "0.0.1",
   "license": "MIT",
   "description": "Browser-only two-stage vision pipeline: person presence (Phase 1) -> face detail (Phase 2). The all-seeing giant that watches your back.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bolin8017/argus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bolin8017/argus/issues"
+  },
+  "homepage": "https://github.com/bolin8017/argus#readme",
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
