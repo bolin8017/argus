@@ -304,8 +304,9 @@
       </div>
       <div class="alert-row">
         <label>連續幀數 <input type="number" id="alert-frames" min="1" max="30" value="1"></label>
+        <label>至少人數 <input type="number" id="alert-min-persons" min="1" max="20" value="1"></label>
         <label>間隔秒數 <input type="number" id="alert-interval" min="0" max="300" value="10"></label>
-        <span class="alert-muted">間隔 0 = 僅在無→有時提醒一次</span>
+        <span class="alert-muted">至少人數 = 畫面上達標才通知；間隔 0 = 僅在無→有時提醒一次</span>
       </div>
       <button type="button" id="alert-advanced-toggle" aria-expanded="false" aria-controls="alert-advanced">
         進階設定

@@ -37,6 +37,7 @@ export class PresenceCoordinator {
     const chNotif = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-ch-notification'));
     const chVisual = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-ch-visual'));
     const frames = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-frames'));
+    const minPersons = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-min-persons'));
     const interval = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-interval'));
     const confirmedOnly = /** @type {HTMLInputElement | null} */ (
       document.getElementById('alert-confirmed-only')
@@ -56,6 +57,7 @@ export class PresenceCoordinator {
       if (chNotif) chNotif.checked = s.channels.notification;
       if (chVisual) chVisual.checked = s.channels.visual;
       if (frames) frames.value = String(s.consecutiveFrames);
+      if (minPersons) minPersons.value = String(s.minPersonCount);
       if (interval) interval.value = String(s.repeatIntervalSec);
       if (confirmedOnly) confirmedOnly.checked = s.useConfirmedOnly;
       if (minScore) minScore.value = String(s.minScore);
@@ -86,6 +88,9 @@ export class PresenceCoordinator {
     });
     frames?.addEventListener('change', () => {
       persist({ consecutiveFrames: Number(frames.value) });
+    });
+    minPersons?.addEventListener('change', () => {
+      persist({ minPersonCount: Number(minPersons.value) });
     });
     interval?.addEventListener('change', () => {
       persist({ repeatIntervalSec: Number(interval.value) });

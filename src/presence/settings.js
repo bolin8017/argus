@@ -8,6 +8,7 @@ export const STORAGE_KEY = 'argus.alertSettings.v1';
  * @typedef {object} AlertSettings
  * @property {{ sound: boolean, notification: boolean, visual: boolean }} channels
  * @property {number} consecutiveFrames
+ * @property {number} minPersonCount
  * @property {number} repeatIntervalSec
  * @property {boolean} useConfirmedOnly
  * @property {number} minScore
@@ -22,6 +23,7 @@ export const DEFAULTS = {
     visual: true,
   },
   consecutiveFrames: 1,
+  minPersonCount: 1,
   repeatIntervalSec: 10,
   useConfirmedOnly: false,
   minScore: 0.35,
@@ -74,6 +76,7 @@ export function normalizeSettings(raw) {
       visual: bool(ch.visual, DEFAULTS.channels.visual),
     },
     consecutiveFrames,
+    minPersonCount: clampInt(r.minPersonCount, 1, 20, DEFAULTS.minPersonCount),
     repeatIntervalSec: clampInt(r.repeatIntervalSec, 0, 300, DEFAULTS.repeatIntervalSec),
     useConfirmedOnly: bool(r.useConfirmedOnly, DEFAULTS.useConfirmedOnly),
     minScore: clampFloat(r.minScore, 0, 1, DEFAULTS.minScore),

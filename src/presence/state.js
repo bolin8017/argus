@@ -31,7 +31,7 @@ export class PresenceState {
    * @returns {{ fire: boolean, present: boolean, edgeEnter: boolean }}
    */
   tick(tracks, settings, nowMs) {
-    const hasPerson = tracks.some((t) => trackCountsAsPerson(t, settings));
+    const hasPerson = meetsPersonThreshold(tracks, settings);
     let fire = false;
     let edgeEnter = false;
 
@@ -87,4 +87,24 @@ export function trackCountsAsPerson(t, settings) {
   if (settings.useConfirmedOnly && !t.confirmed) return false;
   if (t.score < settings.minScore) return false;
   return true;
+}
+
+/**
+ * @param {import('../tracker/bytetrack-lite.js').Track[]} tracks
+ * @param {import('./settings.js').AlertSettings} settings
+ */
+export function countMatchingPersons(tracks, settings) {
+  let n = 0;
+  for (const t of tracks) {
+    if (trackCountsAsPerson(t, settings)) n += 1;
+  }
+  return n;
+}
+
+/**
+ * @param {import('../tracker/bytetrack-lite.js').Track[]} tracks
+ * @param {import('./settings.js').AlertSettings} settings
+ */
+export function meetsPersonThreshold(tracks, settings) {
+  return countMatchingPersons(tracks, settings) >= settings.minPersonCount;
 }
