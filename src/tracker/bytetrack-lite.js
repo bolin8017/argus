@@ -71,7 +71,7 @@ export class ByteTrackLite {
   /**
    * Step the tracker forward by one frame.
    * @param {Detection[]} detections
-   * @returns {Track[]} confirmed (and still-alive) tracks in this frame.
+   * @returns {Track[]} active tracks matched this frame (missed === 0).
    */
   update(detections) {
     const tracks = this.tracks;
@@ -116,7 +116,7 @@ export class ByteTrackLite {
     }
 
     this.tracks = survivors;
-    return survivors.filter((t) => t.confirmed && t.missed === 0);
+    return survivors.filter((t) => t.missed === 0);
   }
 
   /**

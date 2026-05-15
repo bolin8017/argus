@@ -60,6 +60,35 @@
         pointer-events: none;
       }
 
+      .stage.stage--preview-hidden video,
+      .stage.stage--preview-hidden canvas,
+      .stage.stage--preview-hidden .hud {
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .stage-preview-placeholder {
+        display: none;
+        position: absolute;
+        inset: 0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 24px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.9rem;
+        z-index: 1;
+      }
+      .stage.stage--preview-hidden .stage-preview-placeholder {
+        display: flex;
+      }
+      .stage.stage--preview-hidden {
+        min-height: 120px;
+        aspect-ratio: auto;
+        max-height: 200px;
+      }
+
       .hud {
         position: absolute;
         top: 12px;
@@ -101,6 +130,17 @@
       button:disabled { opacity: 0.5; cursor: not-allowed; }
       #start { border-color: #1f5563; color: var(--accent); }
 
+      .ui-show-video-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.88rem;
+        color: var(--muted);
+        cursor: pointer;
+        margin-left: 4px;
+      }
+      .ui-show-video-label input { cursor: pointer; }
+
       #status {
         margin-left: 8px;
         font-size: 0.85rem;
@@ -108,6 +148,105 @@
       }
       #status[data-tone="good"] { color: var(--ok); }
       #status[data-tone="error"] { color: var(--danger); }
+
+      .stage.presence-present {
+        box-shadow: 0 0 0 2px var(--accent), 0 0 24px rgba(34, 211, 238, 0.25);
+      }
+
+      .presence-lamp {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(15, 17, 21, 0.75);
+        backdrop-filter: blur(4px);
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .presence-lamp .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+        box-shadow: 0 0 0 2px rgba(154, 160, 166, 0.35);
+      }
+      .presence-lamp[data-state="present"] .dot {
+        background: var(--danger);
+        box-shadow: 0 0 8px rgba(248, 113, 113, 0.7);
+      }
+      .presence-lamp[data-state="present"] .label::after { content: '有人'; }
+      .presence-lamp[data-state="absent"] .label::after { content: '無人'; }
+
+      .alert-settings {
+        max-width: 1280px;
+        margin: 16px auto 0;
+        padding: 14px 16px;
+        background: var(--panel);
+        border: 1px solid #2a3140;
+        border-radius: 8px;
+      }
+      .alert-settings h2 {
+        margin: 0 0 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+      .alert-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .alert-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.88rem;
+        cursor: pointer;
+      }
+      .alert-row input[type="number"] {
+        width: 4.5rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #2a3140;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+      }
+      .alert-row input[type="range"] { width: 120px; }
+      .alert-muted {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .alert-advanced {
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid #2a3140;
+      }
+      .alert-advanced[hidden] { display: none; }
+      .alert-status {
+        margin-top: 10px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .alert-status span { margin-right: 16px; }
+      .alert-hint {
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: var(--danger);
+      }
+      .alert-hint[hidden] { display: none; }
+      #alert-sound-extras[hidden] { display: none; }
+      #alert-advanced-toggle {
+        margin-top: 4px;
+        font-size: 0.85rem;
+        padding: 4px 10px;
+      }
 
       footer {
         margin-top: 24px;
@@ -130,6 +269,10 @@
     </header>
 
     <div class="stage">
+      <div class="stage-preview-placeholder">
+        <span>視訊預覽已關閉</span>
+        <span class="alert-muted">鏡頭仍在背景運作，提醒功能不受影響</span>
+      </div>
       <video id="video" muted playsinline></video>
       <canvas id="overlay"></canvas>
       <div class="hud" aria-live="polite">
@@ -139,19 +282,61 @@
         <span class="k">active tracks</span>  <span class="v" id="hud-tracks">0</span>
         <span class="k">backend</span>        <span class="v" id="hud-backend">—</span>
       </div>
+      <div id="presence-lamp" class="presence-lamp" data-state="absent" aria-label="無人">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="label" aria-hidden="true"></span>
+      </div>
     </div>
 
     <div class="controls">
       <button id="start">啟動</button>
       <button id="stop" disabled>停止</button>
+      <label class="ui-show-video-label"><input type="checkbox" id="ui-show-video" checked> 顯示視訊預覽</label>
       <span id="status">idle</span>
     </div>
+
+    <section id="alert-settings" class="alert-settings" aria-labelledby="alert-settings-title">
+      <h2 id="alert-settings-title">通知設定</h2>
+      <div class="alert-row">
+        <label><input type="checkbox" id="alert-ch-sound" checked> 頁內提示音</label>
+        <label><input type="checkbox" id="alert-ch-notification"> 系統通知</label>
+        <label><input type="checkbox" id="alert-ch-visual" checked> 頁內燈號</label>
+      </div>
+      <div class="alert-row">
+        <label>連續幀數 <input type="number" id="alert-frames" min="1" max="30" value="1"></label>
+        <label>間隔秒數 <input type="number" id="alert-interval" min="0" max="300" value="10"></label>
+        <span class="alert-muted">間隔 0 = 僅在無→有時提醒一次</span>
+      </div>
+      <button type="button" id="alert-advanced-toggle" aria-expanded="false" aria-controls="alert-advanced">
+        進階設定
+      </button>
+      <div id="alert-advanced" class="alert-advanced" hidden>
+        <div class="alert-row">
+          <label><input type="checkbox" id="alert-confirmed-only"> 僅使用已確認追蹤</label>
+          <label>最低信心 <input type="number" id="alert-min-score" min="0" max="1" step="0.05" value="0.35"></label>
+          <label>離開遲滯幀數 <input type="number" id="alert-leave-frames" min="1" max="60" placeholder="同連續幀數"></label>
+        </div>
+      </div>
+      <div id="alert-sound-extras" class="alert-row">
+        <label>音量 <input type="range" id="alert-volume" min="0" max="1" step="0.05" value="0.7"></label>
+        <button type="button" id="alert-test-sound">測試音</button>
+      </div>
+      <p id="alert-notif-hint" class="alert-hint" hidden>
+        系統通知已拒絕，請在瀏覽器網站設定中允許通知後重新整理。
+      </p>
+      <div class="alert-status">
+        <span>通知權限：<strong id="alert-notif-perm">—</strong></span>
+        <span>音訊：<strong id="alert-audio-status">未解鎖</strong></span>
+      </div>
+    </section>
 
     <footer>
       Open the page over <code>http://localhost</code> (or HTTPS) and grant
       webcam permission. On WebGPU-capable browsers (Chrome/Edge ≥ 113) the
       backend will say <code>webgpu</code>; on Safari / Firefox without WebGPU
       it falls back to threaded WASM (<code>wasm</code>).
+      身後有人提醒需保持分頁開啟；背景分頁音訊可能被節流，系統通知在部分裝置上較可靠。
+      Mobile Safari 對相機與背景行為較嚴格。
     </footer>
 
     <script type="module" src="/src/app.js"></script>

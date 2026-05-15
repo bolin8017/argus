@@ -19,6 +19,16 @@
 import { PersonPipeline } from './pipeline/person.js';
 import { FacePipeline } from './pipeline/face.js';
 import { Overlay, EMA } from './ui/overlay.js';
+import { getPresenceCoordinator } from './presence/coordinator.js';
+import {
+  bindVideoPreviewToggle,
+  isVideoPreviewVisible,
+  setSettingsGetter,
+} from './ui/display-settings.js';
+
+const presence = getPresenceCoordinator();
+const getUiSettings = bindVideoPreviewToggle();
+setSettingsGetter(getUiSettings);
 
 const els = {
   video: /** @type {HTMLVideoElement} */ (document.getElementById('video')),
@@ -107,6 +117,8 @@ async function start() {
   els.stopBtn.disabled = false;
   setStatus('running', 'good');
 
+  await presence.onSessionStart();
+
   schedule();
   startHudTicker();
 }
@@ -130,6 +142,7 @@ function stop() {
   state.lastFaces = [];
   state.frameIdx = 0;
   state.person?.reset();
+  presence.stop();
   els.stopBtn.disabled = true;
   els.startBtn.disabled = false;
   setStatus('stopped');
@@ -183,7 +196,13 @@ async function onFrame(now /* , metadata */) {
     }
   }
 
-  state.overlay?.drawTracks(state.lastTracks, state.lastFaces);
+  if (state.running) presence.tick(state.lastTracks);
+
+  if (isVideoPreviewVisible()) {
+    state.overlay?.drawTracks(state.lastTracks, state.lastFaces);
+  } else {
+    state.overlay?.clear();
+  }
   schedule();
 }
 

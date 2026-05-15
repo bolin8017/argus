@@ -38,7 +38,7 @@ function safeJoin(urlPath) {
   return joined;
 }
 
-createServer(async (req, res) => {
+async function handleRequest(req, res) {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
@@ -60,6 +60,35 @@ createServer(async (req, res) => {
   } catch (err) {
     res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.code || 'error');
   }
-}).listen(PORT, () => {
-  console.log(`Argus dev server: http://localhost:${PORT}`);
-});
+}
+
+const MAX_PORT_TRIES = 10;
+
+function listen(port, attempt = 0) {
+  const server = createServer(handleRequest);
+  server.once('error', (err) => {
+    if (err.code === 'EADDRINUSE' && attempt < MAX_PORT_TRIES - 1) {
+      console.warn(`[dev] port ${port} in use, trying ${port + 1}…`);
+      listen(port + 1, attempt + 1);
+      return;
+    }
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `[dev] ports ${PORT}–${port} are in use. Stop the other process, e.g.\n` +
+          `      lsof -i :${PORT}   then kill <pid>\n` +
+          `      or: PORT=${port + 1} npm run dev`,
+      );
+    } else {
+      console.error('[dev] server error:', err);
+    }
+    process.exit(1);
+  });
+  server.listen(port, () => {
+    if (port !== PORT) {
+      console.warn(`[dev] default port ${PORT} was busy; using ${port} instead.`);
+    }
+    console.log(`Argus dev server: http://localhost:${port}`);
+  });
+}
+
+listen(PORT);
