@@ -13,7 +13,7 @@
  * Wired up in package.json as `npm run vendor:ort` and as `postinstall`.
  */
 
-import { mkdir, copyFile, stat } from 'node:fs/promises';
+import { mkdir, copyFile, stat, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,6 +51,9 @@ const FILES = [
   'ort-wasm-simd-threaded.mjs',
 ];
 
+// Dropped from vendor list (Pages 25 MiB cap); remove stale copies if present.
+const REMOVED = ['ort-wasm-simd-threaded.jsep.wasm', 'ort-wasm-simd-threaded.jsep.mjs'];
+
 async function ensureSrc() {
   try {
     await stat(SRC);
@@ -66,6 +69,15 @@ async function ensureSrc() {
 async function main() {
   await ensureSrc();
   await mkdir(DST, { recursive: true });
+
+  for (const name of REMOVED) {
+    try {
+      await unlink(join(DST, name));
+      console.log(`  rm ${name} (removed from vendor set)`);
+    } catch {
+      /* already absent */
+    }
+  }
 
   let copied = 0;
   let bytes = 0;
