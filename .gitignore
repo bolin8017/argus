@@ -9,6 +9,11 @@ models/*.tflite
 
 # Self-hosted onnxruntime-web wasm/mjs; downloaded from npm at setup time.
 vendor/ort/
+vendor/human/
+
+# Human / BlazeFace weights (staged from npm via vendor:human)
+models/human/*.bin
+models/human/*.json
 
 # Editor / OS
 .vscode/

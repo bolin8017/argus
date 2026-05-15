@@ -41,3 +41,19 @@ shasum -a 256 models/yolo11n.onnx
 If your re-export doesn't match this hash, that's expected (export is not
 bit-reproducible across torch versions). The hash check only applies to the
 binary we mirror from Hugging Face.
+
+## Phase 2 (Human / BlazeFace)
+
+Face weights and the Human browser bundle are **not committed** (see `.gitignore`). After `npm install`, `postinstall` runs `vendor:human`, which copies:
+
+- `vendor/human/human.esm.js` — vendored `@vladmandic/human` ESM build  
+- `models/human/blazeface.json` + `blazeface.bin` — detector only  
+- `vendor/human/tfjs-wasm/*` — TensorFlow.js WASM binaries for `backend: 'wasm'`
+
+Re-run manually if needed:
+
+```bash
+npm run vendor:human
+```
+
+BlazeFace assets ship under the **MIT** license of the Human project; see upstream for details.

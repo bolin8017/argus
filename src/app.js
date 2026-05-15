@@ -26,12 +26,13 @@ const els = {
   startBtn: /** @type {HTMLButtonElement} */ (document.getElementById('start')),
   stopBtn: /** @type {HTMLButtonElement} */ (document.getElementById('stop')),
   status: document.getElementById('status'),
-  hud: {
-    fps: document.getElementById('hud-fps'),
-    detectMs: document.getElementById('hud-detect-ms'),
-    tracks: document.getElementById('hud-tracks'),
-    backend: document.getElementById('hud-backend'),
-  },
+    hud: {
+      fps: document.getElementById('hud-fps'),
+      detectMs: document.getElementById('hud-detect-ms'),
+      faceMs: document.getElementById('hud-face-ms'),
+      tracks: document.getElementById('hud-tracks'),
+      backend: document.getElementById('hud-backend'),
+    },
 };
 
 const state = {
@@ -43,12 +44,15 @@ const state = {
   inflight: false,
   /** rVFC callback handle (browser-specific). */ rvfcHandle: 0,
   rafHandle: 0,
-  /** @type {import('../src/tracker/bytetrack-lite.js').Track[]} */ lastTracks: [],
+  /** @type {import('../tracker/bytetrack-lite.js').Track[]} */ lastTracks: [],
+  /** @type {import('./pipeline/face.js').Face[]} */ lastFaces: [],
+  frameIdx: 0,
 };
 
 const ema = {
   fps: new EMA(0.1),
   detectMs: new EMA(0.1),
+  faceMs: new EMA(0.1),
 };
 let lastFrameTime = 0;
 
@@ -123,6 +127,8 @@ function stop() {
   els.video.srcObject = null;
   state.overlay?.clear();
   state.lastTracks = [];
+  state.lastFaces = [];
+  state.frameIdx = 0;
   state.person?.reset();
   els.stopBtn.disabled = true;
   els.startBtn.disabled = false;
@@ -155,12 +161,21 @@ async function onFrame(now /* , metadata */) {
   lastFrameTime = now;
   if (dt > 0) ema.fps.push(1000 / dt);
 
-  if (!state.inflight && state.person) {
+  if (!state.inflight && state.person && state.face) {
     state.inflight = true;
     try {
       const { tracks, detectMs } = await state.person.detect(els.video);
       state.lastTracks = tracks;
       ema.detectMs.push(detectMs);
+
+      const fps = ema.fps.value;
+      const { faces, faceMs } = await state.face.detect(els.video, tracks, {
+        frameIdx: state.frameIdx,
+        fps,
+      });
+      state.lastFaces = faces;
+      ema.faceMs.push(faceMs);
+      state.frameIdx += 1;
     } catch (err) {
       console.error('[app] detect failed:', err);
     } finally {
@@ -168,7 +183,7 @@ async function onFrame(now /* , metadata */) {
     }
   }
 
-  state.overlay?.drawTracks(state.lastTracks);
+  state.overlay?.drawTracks(state.lastTracks, state.lastFaces);
   schedule();
 }
 
@@ -183,6 +198,10 @@ function startHudTicker() {
     if (els.hud.detectMs) {
       const v = ema.detectMs.value;
       els.hud.detectMs.textContent = v == null ? '—' : v.toFixed(1);
+    }
+    if (els.hud.faceMs) {
+      const v = ema.faceMs.value;
+      els.hud.faceMs.textContent = v == null ? '—' : v.toFixed(1);
     }
     if (els.hud.tracks) els.hud.tracks.textContent = String(state.lastTracks.length);
   }, 100);

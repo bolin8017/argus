@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Argus tests — Phase 1 + 2 (image)</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #0f1115;
+        color: #e8eaed;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      header { margin-bottom: 12px; }
+      header h1 { margin: 0 0 4px; font-size: 1.1rem; }
+      header p { margin: 0; color: #9aa0a6; font-size: 0.85rem; }
+      .drop {
+        border: 2px dashed #2a3140;
+        border-radius: 8px;
+        padding: 32px;
+        text-align: center;
+        color: #9aa0a6;
+        margin-bottom: 12px;
+        cursor: pointer;
+      }
+      .drop.hot { border-color: #34d399; color: #34d399; }
+      .stage {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+      }
+      .stage img,
+      .stage canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      .stage canvas {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      pre {
+        background: #161a22;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        overflow: auto;
+        max-height: 28vh;
+      }
+      .meta {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        margin: 8px 0;
+        color: #9aa0a6;
+      }
+      .meta b { color: #e8eaed; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Phase 1 + 2 image test</h1>
+      <p>
+        Same pipeline as the live app: YOLO person → ByteTrack-Lite (minHits=1 for a single still frame)
+        → Human BlazeFace inside each person ROI. Requires <code>models/yolo11n.onnx</code> and vendored Human assets (<code>npm install</code>).
+      </p>
+    </header>
+
+    <div id="drop" class="drop">drop an image here, or click to pick</div>
+    <input id="file" type="file" accept="image/*" hidden>
+
+    <div class="stage">
+      <img id="preview" alt="">
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <div class="meta">
+      <span>backend: <b id="m-backend">—</b></span> &nbsp;
+      <span>person: <b id="m-p-ms">—</b> ms</span> &nbsp;
+      <span>tracks: <b id="m-tracks">—</b></span> &nbsp;
+      <span>face pass: <b id="m-f-ms">—</b> ms</span> &nbsp;
+      <span>faces: <b id="m-count">—</b></span>
+    </div>
+
+    <pre id="json">[]</pre>
+
+    <script type="module">
+      import { PersonPipeline } from '/src/pipeline/person.js';
+      import { FacePipeline } from '/src/pipeline/face.js';
+      import { Overlay } from '/src/ui/overlay.js';
+
+      const drop = document.getElementById('drop');
+      const fileInput = document.getElementById('file');
+      const preview = document.getElementById('preview');
+      const canvas = document.getElementById('overlay');
+      const mBackend = document.getElementById('m-backend');
+      const mPMs = document.getElementById('m-p-ms');
+      const mTracks = document.getElementById('m-tracks');
+      const mFMs = document.getElementById('m-f-ms');
+      const mCount = document.getElementById('m-count');
+      const jsonEl = document.getElementById('json');
+
+      let personPipe = null;
+      let facePipe = null;
+
+      async function ensurePipelines() {
+        if (!personPipe) {
+          personPipe = new PersonPipeline({
+            tracker: { minHits: 1 },
+          });
+          await personPipe.init();
+          mBackend.textContent = personPipe.backend;
+        }
+        if (!facePipe) {
+          facePipe = new FacePipeline();
+          await facePipe.init();
+        }
+      }
+
+      async function runOn(file) {
+        const url = URL.createObjectURL(file);
+        preview.src = url;
+        await preview.decode();
+        const w = preview.naturalWidth;
+        const h = preview.naturalHeight;
+        const overlay = new Overlay(canvas, { mirrored: false });
+        overlay.resizeTo(w, h);
+
+        await ensurePipelines();
+
+        const { tracks, detectMs } = await personPipe.detect(preview);
+        mPMs.textContent = detectMs.toFixed(1);
+        mTracks.textContent = String(tracks.length);
+
+        if (!tracks.length) {
+          mFMs.textContent = '—';
+          mCount.textContent = '0';
+          jsonEl.textContent = JSON.stringify({ error: 'no person tracks (try a clearer full-body shot or class 0 visible)' }, null, 2);
+          overlay.drawTracks([], []);
+          return;
+        }
+
+        const { faces, faceMs } = await facePipe.detect(preview, tracks, { frameIdx: 0, fps: 30 });
+        mFMs.textContent = faceMs.toFixed(1);
+        mCount.textContent = String(faces.length);
+        jsonEl.textContent = JSON.stringify({ tracks, faces }, null, 2);
+        overlay.drawTracks(tracks, faces);
+      }
+
+      drop.addEventListener('click', () => fileInput.click());
+      drop.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        drop.classList.add('hot');
+      });
+      drop.addEventListener('dragleave', () => drop.classList.remove('hot'));
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        drop.classList.remove('hot');
+        const f = e.dataTransfer?.files?.[0];
+        if (f) runOn(f).catch((err) => alert(err.message ?? err));
+      });
+      fileInput.addEventListener('change', () => {
+        const f = fileInput.files?.[0];
+        if (f) runOn(f).catch((err) => alert(err.message ?? err));
+      });
+    </script>
+  </body>
+</html>

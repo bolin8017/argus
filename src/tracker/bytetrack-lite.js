@@ -34,6 +34,8 @@
  * @property {number} missed     // consecutive frames without a match
  * @property {number} age        // total frames since first seen
  * @property {boolean} confirmed // hits >= minHits
+ * @property {number} [lastFaceFrameIdx]  // app frame index of last Phase-2 face run (Step 5)
+ * @property {import('../pipeline/face.js').Face[] | null} [lastFaces] // cached faces for throttled frames
  */
 
 /**
@@ -148,6 +150,8 @@ export class ByteTrackLite {
       missed: 0,
       age: 1,
       confirmed: this.opts.minHits <= 1,
+      lastFaceFrameIdx: -10_000_000,
+      lastFaces: null,
     };
   }
 }

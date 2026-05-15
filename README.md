@@ -1,51 +1,94 @@
 # Argus
 
-> Greek mythology: Argus Panoptes — the all-seeing giant covered in eyes who never fully slept.
-> 在你看不到的地方，它替你看著。
+**Argus** is a browser-only, two-stage vision demo: **person detection** (Phase 1) then **face boxes inside each person ROI** (Phase 2). No Python, Docker, or GPU drivers—just a static page and a tiny static file server with cross-origin isolation headers for threaded WASM.
 
-純瀏覽器（無需 Python/Docker/GPU 驅動）的兩階段視覺管線：
+> 希臘神話裡永不闔眼的百眼巨人；在你看不到的地方，替你看著。
 
-1. **Phase 1 — Person Presence**：偵測畫面裡是否有人，輸出穩定的 bounding box（YOLO + ByteTrack/IoU 平滑）。
-2. **Phase 2 — Face Detail**：只在 Phase 1 的 ROI 上做人臉與相關屬性（`@vladmandic/human` 或同類）。
+## Continuous integration
 
-## 設計重點
+After you push to GitHub, **`.github/workflows/ci.yml`** runs `npm ci`, `npm run model:fetch`, and checks that ORT, Human, and YOLO artifacts exist. Replace branch filters if your default branch is not `main` / `master`.
 
-- **純網頁可跑**：只需 `localhost` 或靜態託管。
-- **框優先穩**：可接受較大 bundle 與較長載入時間，換取偵測框穩定。
-- **離線可放**：模型、`onnxruntime-web` wasm 全可放在 `models/` 與 `vendor/`，不依賴 CDN。
+## Features
 
-## 預設技術選型（v0）
+- **Phase 1** — YOLO11n (ONNX) via `onnxruntime-web` (WebGPU → WASM), COCO class **person** only, **ByteTrack-Lite** (IoU + EMA) for stable boxes.
+- **Phase 2** — [`@vladmandic/human`](https://github.com/vladmandic/human) **BlazeFace** path only, throttled per track, TF.js **`wasm`** backend (local binaries, no CDN).
+- **Mirror-safe UI** — CSS mirrors the preview video; models consume the **unmirrored** frame; overlay compensates so boxes line up with what you see.
+- **Offline-friendly** — Weights under `models/`, ORT + Human + TFJS WASM under `vendor/` (populated by `npm install` scripts).
 
-| 層 | 選擇 | 備註 |
-|---|---|---|
-| 偵測引擎 | [onnxruntime-web](https://onnxruntime.ai/docs/get-started/with-javascript/web.html) | WebGPU 優先，WASM SIMD+Threads 降級 |
-| Phase 1 模型 | YOLO11n（或 YOLOX-nano） | YOLO11n 框較穩但 AGPL；YOLOX-nano 是 Apache-2.0 替代 |
-| 追蹤器 | ByteTrack-Lite + bbox EMA | 參考 [nomi30701/YOLO-ByteTrack-ONNX-Web](https://github.com/nomi30701/YOLO-ByteTrack-ONNX-Web) |
-| Phase 2 模型 | `@vladmandic/human` | 只在 person ROI 內呼叫，且降頻 |
-| 伺服器 | `server.mjs`（內建 COOP/COEP header） | 讓 WASM threads 可用 |
+## Requirements
 
-詳細的選型理由與替代方案，見隔壁專案 `human/` 中我們的 survey（後續可移植進此 repo 的 `docs/`）。
+- **Node.js** 20+ (repo targets **24** via `.nvmrc`).
+- **Chromium-class browser** recommended for WebGPU; Safari/Firefox fall back to WASM where supported.
 
-## 目錄結構
+## Quick start
+
+```bash
+git clone <your-repo-url> argus && cd argus
+nvm use                    # optional: Node 24 per .nvmrc
+npm install                # vendors ORT + Human + TFJS wasm into vendor/
+npm run model:fetch        # downloads models/yolo11n.onnx (see models/README.md)
+npm run dev                # http://localhost:8765/
+```
+
+Open **`/`** for webcam. Static checks:
+
+| Page | Purpose |
+|------|---------|
+| [`/tests/yolo.html`](tests/yolo.html) | One-shot YOLO preprocess → ORT → NMS on a dropped image |
+| [`/tests/face.html`](tests/face.html) | Same **Phase 1 → Phase 2** path as `/` on a dropped image (`minHits: 1` so one frame can confirm) |
+
+## Repository layout
 
 ```
 argus/
-  index.html         # 入口頁
-  server.mjs         # 靜態檔伺服器（含 Cross-Origin Isolation header）
-  src/               # 應用程式碼（detector / tracker / pipeline / UI）
-  models/            # 放 yolo11n.onnx 等模型（gitignore 排除大檔，README 內說明）
-  vendor/            # 放 onnxruntime-web 的 .wasm / .mjs，離線時用
+  index.html              # Main UI
+  server.mjs              # Static server + COOP/COEP/CORP (do not strip for WASM threads)
+  package.json
+  .nvmrc
+  LICENSE                 # MIT — applies to this repo's source (not third-party weights)
+  CONTRIBUTING.md
+  .github/workflows/ci.yml
+  src/
+    app.js                 # rVFC/rAF loop, person + face pipelines, HUD
+    detector/ort-loader.js, yolo.js
+    tracker/bytetrack-lite.js
+    pipeline/person.js, face.js
+    ui/overlay.js
+  scripts/
+    vendor-ort.mjs        # Sync ORT web bundle → vendor/ort/
+    vendor-human.mjs      # Stage Human ESM + BlazeFace + TFJS wasm → vendor/human/, models/human/
+    fetch-model.mjs       # Download YOLO weights + SHA-256 verify
+  tests/
+    yolo.html, face.html   # Manual sanity pages
+  models/                  # Large binaries gitignored; see models/README.md
+  vendor/                  # Vendored runtimes gitignored; recreated by npm install
 ```
 
-## 開發
+## Scripts
 
-```bash
-nvm use            # Node 24（見 .nvmrc）
-npm install
-npm run dev        # 開 http://localhost:8765
-```
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start `server.mjs` on port **8765** (override with `PORT`). |
+| `npm run vendor:ort` | Copy `onnxruntime-web` dist into `vendor/ort/`. |
+| `npm run vendor:human` | Copy Human ESM, BlazeFace, TFJS wasm workers into `vendor/human/` and `models/human/`. |
+| `npm run model:fetch` | Download default YOLO ONNX into `models/`. |
 
-## License
+`postinstall` runs **`vendor:ort`** then **`vendor:human`**.
 
-TBD（依最終選用的模型而定；若採 YOLO11n 模型權重需注意 AGPL-3.0）。
+## Third-party licenses
 
+| Component | License | Notes |
+|-----------|---------|--------|
+| This repository (TS/JS you see here) | **MIT** | [`LICENSE`](LICENSE) |
+| Default YOLO11n ONNX weights | **AGPL-3.0** | See [`models/README.md`](models/README.md); swap weights if AGPL is a problem for you. |
+| [`@vladmandic/human`](https://github.com/vladmandic/human) | **MIT** | BlazeFace weights vendored from the npm package. |
+| [`onnxruntime-web`](https://github.com/microsoft/onnxruntime) | **MIT** | Vendored WASM/JS. |
+| TensorFlow.js WASM backend | **Apache-2.0** | Vendored alongside Human. |
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Disclaimer
+
+This project is **personal / educational** quality—not a commercial analytics product. Use at your own risk; do not rely on it for safety-critical decisions.

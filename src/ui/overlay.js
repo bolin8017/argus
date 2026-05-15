@@ -41,11 +41,11 @@ export class Overlay {
 
   /**
    * @param {import('../tracker/bytetrack-lite.js').Track[]} tracks
+   * @param {import('../pipeline/face.js').Face[]} [faces]
    */
-  drawTracks(tracks) {
+  drawTracks(tracks, faces = []) {
     const ctx = this.ctx;
     const W = this.canvas.width;
-    const H = this.canvas.height;
     this.clear();
 
     ctx.save();
@@ -65,6 +65,7 @@ export class Overlay {
       const y = t.y1;
       const w = t.x2 - t.x1;
       const h = t.y2 - t.y1;
+      ctx.setLineDash([]);
       ctx.strokeRect(x, y, w, h);
 
       const label = `#${t.id}  ${(t.score * 100).toFixed(0)}%`;
@@ -90,7 +91,46 @@ export class Overlay {
       ctx.restore();
     }
 
+    this._drawFaces(ctx, faces);
+
     ctx.restore();
+  }
+
+  /**
+   * Face boxes in raw-video space (same as tracks). Dashed outline to distinguish from person tracks.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {import('../pipeline/face.js').Face[]} faces
+   */
+  _drawFaces(ctx, faces) {
+    if (!faces.length) return;
+    const dash = Math.max(4, Math.round(ctx.lineWidth * 2));
+    ctx.setLineDash([dash, dash]);
+    ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = Math.max(2, ctx.lineWidth - 0.5);
+    for (const f of faces) {
+      const w = f.x2 - f.x1;
+      const h = f.y2 - f.y1;
+      ctx.strokeRect(f.x1, f.y1, w, h);
+      const label = `face ${(f.score * 100).toFixed(0)}%`;
+      const metrics = ctx.measureText(label);
+      const padding = 4;
+      const boxH = parseInt(ctx.font, 10) + padding * 2;
+      const boxY = Math.max(0, f.y1 - boxH);
+      ctx.fillStyle = 'rgba(52,211,153,0.85)';
+      ctx.fillRect(f.x1, boxY, metrics.width + padding * 2, boxH);
+      ctx.save();
+      if (this.mirrored) {
+        ctx.translate(f.x1 + metrics.width + padding * 2, boxY);
+        ctx.scale(-1, 1);
+        ctx.fillStyle = '#0f1115';
+        ctx.fillText(label, padding, padding);
+      } else {
+        ctx.fillStyle = '#0f1115';
+        ctx.fillText(label, f.x1 + padding, boxY + padding);
+      }
+      ctx.restore();
+    }
+    ctx.setLineDash([]);
   }
 }
 

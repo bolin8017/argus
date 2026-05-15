@@ -1,19 +1,22 @@
 {
   "name": "argus",
   "version": "0.0.1",
-  "private": true,
+  "license": "MIT",
   "description": "Browser-only two-stage vision pipeline: person presence (Phase 1) -> face detail (Phase 2). The all-seeing giant that watches your back.",
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
     "vendor:ort": "node scripts/vendor-ort.mjs",
+    "vendor:human": "node scripts/vendor-human.mjs",
     "model:fetch": "node scripts/fetch-model.mjs",
-    "postinstall": "node scripts/vendor-ort.mjs"
+    "postinstall": "node scripts/vendor-ort.mjs && node scripts/vendor-human.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@vladmandic/human": "^3.3.6",
     "onnxruntime-web": "^1.26.0"
   }
 }

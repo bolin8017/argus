@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Argus — Phase 1 (person detection)</title>
+    <title>Argus — person + face</title>
     <style>
       :root {
         color-scheme: dark;
@@ -126,7 +126,7 @@
   <body>
     <header>
       <h1>Argus</h1>
-      <span class="sub">Phase 1 — person presence (YOLO11n + ByteTrack-Lite)</span>
+      <span class="sub">Phase 1–2 — person (YOLO11n + ByteTrack) + face (Human / BlazeFace)</span>
     </header>
 
     <div class="stage">
@@ -135,6 +135,7 @@
       <div class="hud" aria-live="polite">
         <span class="k">FPS</span>            <span class="v" id="hud-fps">—</span>
         <span class="k">detect (ms)</span>    <span class="v" id="hud-detect-ms">—</span>
+        <span class="k">face (ms)</span>      <span class="v" id="hud-face-ms">—</span>
         <span class="k">active tracks</span>  <span class="v" id="hud-tracks">0</span>
         <span class="k">backend</span>        <span class="v" id="hud-backend">—</span>
       </div>
