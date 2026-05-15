@@ -30,6 +30,10 @@ Cloudflare runs the install command, then the build command. `postinstall` vendo
 
 `public/_headers` is copied to `dist/_headers` so Pages serves the same **COOP / COEP / CORP** policy as `server.mjs` (required for threaded WASM). Do not remove those headers on the live site without understanding the impact on `SharedArrayBuffer`.
 
+## Cloudflare Pages limits
+
+**Per-file size:** Pages rejects any single asset **larger than 25 MiB**. Argus therefore does not vendor `ort-wasm-simd-threaded.jsep.wasm` (unused by the ORT 1.26 webgpu bundle but ~25 MiB). See `scripts/vendor-ort.mjs`.
+
 ## Project name conflicts
 
 If the slug `argus` is taken globally on `*.pages.dev`, pick another **project name** in the Cloudflare UI and align:

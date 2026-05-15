@@ -34,10 +34,11 @@ const DST = join(ROOT, 'vendor/ort');
 //
 // We use the webgpu bundle, so the only runtime-required pair is asyncify.
 // We keep the plain `.wasm/.mjs` too because some ORT entry points fall back
-// to those for the "wasm" EP path in a single-threaded context. JSEP files
-// are NOT used by 1.26's webgpu bundle and could be dropped; we keep them
-// staged as a safety net during the Phase 1 stabilization period and will
-// trim once the runtime mix is settled.
+// to those for the "wasm" EP path in a single-threaded context.
+//
+// We do NOT copy ort-wasm-simd-threaded.jsep.{mjs,wasm}: they are unused by
+// ORT 1.26's webgpu bundle, and jsep.wasm exceeds Cloudflare Pages' per-file
+// 25 MiB upload limit (see docs/DEPLOY.md).
 const FILES = [
   // Main JS bundle (webgpu-aware loader).
   'ort.webgpu.bundle.min.mjs',
@@ -48,9 +49,6 @@ const FILES = [
   // Plain WASM pair — used by the bundle for some non-webgpu code paths.
   'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd-threaded.mjs',
-  // JSEP pair — currently unused by 1.26's webgpu bundle; kept as safety net.
-  'ort-wasm-simd-threaded.jsep.wasm',
-  'ort-wasm-simd-threaded.jsep.mjs',
 ];
 
 async function ensureSrc() {
