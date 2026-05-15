@@ -25,13 +25,30 @@ const DST = join(ROOT, 'vendor/ort');
 // never accidentally ship the entire dist (which includes node-only builds,
 // debug builds, etc.). If onnxruntime-web renames a file in a future release,
 // the warning below will flag it.
+//
+// ORT 1.26 bundle / wasm pairing (see onnxruntime-common/.../env.d.ts):
+//   - ort.bundle.min.mjs            -> ort-wasm-simd-threaded.{mjs,wasm}        (plain CPU build)
+//   - ort.webgpu.bundle.min.mjs     -> ort-wasm-simd-threaded.asyncify.{mjs,wasm}  (WebGPU + asyncify)
+//   - ort.jspi.bundle.min.mjs       -> ort-wasm-simd-threaded.jspi.{mjs,wasm}      (WebGPU + JSPI)
+//   - (any bundle, JSEP support)    -> ort-wasm-simd-threaded.jsep.{mjs,wasm}      (legacy webgpu/webnn ops)
+//
+// We use the webgpu bundle, so the only runtime-required pair is asyncify.
+// We keep the plain `.wasm/.mjs` too because some ORT entry points fall back
+// to those for the "wasm" EP path in a single-threaded context. JSEP files
+// are NOT used by 1.26's webgpu bundle and could be dropped; we keep them
+// staged as a safety net during the Phase 1 stabilization period and will
+// trim once the runtime mix is settled.
 const FILES = [
-  // WebGPU bundle (preferred execution provider).
+  // Main JS bundle (webgpu-aware loader).
   'ort.webgpu.bundle.min.mjs',
   'ort.webgpu.bundle.min.mjs.map',
-  // WASM fallback: threaded SIMD build (+ JSEP variant for WebGPU/WebNN ops).
+  // Asyncify WASM pair — REQUIRED by the webgpu bundle in ORT 1.26.
+  'ort-wasm-simd-threaded.asyncify.mjs',
+  'ort-wasm-simd-threaded.asyncify.wasm',
+  // Plain WASM pair — used by the bundle for some non-webgpu code paths.
   'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd-threaded.mjs',
+  // JSEP pair — currently unused by 1.26's webgpu bundle; kept as safety net.
   'ort-wasm-simd-threaded.jsep.wasm',
   'ort-wasm-simd-threaded.jsep.mjs',
 ];

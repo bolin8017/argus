@@ -87,7 +87,17 @@ export async function loadOrtSession(modelUrl, opts = {}) {
     executionMode: 'sequential',
   };
 
-  let lastErr;
+  // We surface the FIRST EP's failure in the thrown error rather than the
+  // last, because ORT internally caches initialization failures: a failed
+  // WebGPU attempt that needs the WASM module under the hood will poison the
+  // wasm backend and make every subsequent EP attempt throw "previous call to
+  // 'initWasm()' failed". The first error is the original root cause.
+  /** @type {Array<{ ep: string, err: Error }>} */
+  const failures = [];
+  // eslint-disable-next-line no-console
+  console.info(`[ort-loader] env crossOriginIsolated=${typeof globalThis !== 'undefined' && /** @type {any} */ (globalThis).crossOriginIsolated}, SharedArrayBuffer=${typeof SharedArrayBuffer !== 'undefined'}, numThreads=${ort.env.wasm.numThreads}, wasmPaths=${typeof ort.env.wasm.wasmPaths === 'string' ? ort.env.wasm.wasmPaths : '[object]'}`);
+  // eslint-disable-next-line no-console
+  console.info(`[ort-loader] EP order: ${order.join(' -> ')}`);
   for (const ep of order) {
     try {
       const t0 = performance.now();
@@ -100,12 +110,19 @@ export async function loadOrtSession(modelUrl, opts = {}) {
       console.info(`[ort-loader] backend=${ep} load=${loadMs.toFixed(0)}ms`);
       return { ort, session, backend: ep };
     } catch (err) {
-      lastErr = err;
+      const wrapped = err instanceof Error ? err : new Error(String(err));
+      failures.push({ ep, err: wrapped });
       // eslint-disable-next-line no-console
-      console.warn(`[ort-loader] backend=${ep} failed:`, err?.message || err);
+      console.error(`[ort-loader] backend=${ep} failed:\n  message: ${wrapped.message}\n  stack:`, wrapped.stack ?? '(no stack)');
     }
   }
-  throw lastErr ?? new Error('No execution provider succeeded.');
+  // Throw with the FIRST failure's original message + a tail listing what we
+  // tried, so the UI surfaces the root cause instead of the cached one.
+  const first = failures[0];
+  const summary = failures.map((f) => `${f.ep}=${f.err.message}`).join(' | ');
+  const out = new Error(`all backends failed (${summary})`);
+  out.cause = first?.err;
+  throw out;
 }
 
 async function pickBackendOrder(preferred) {
