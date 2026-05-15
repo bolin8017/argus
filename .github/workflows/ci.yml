@@ -20,15 +20,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download YOLO weights (CI only)
-        run: npm run model:fetch
+      - name: Build static site (dist/)
+        run: npm run build
 
-      - name: Check vendored runtimes
-        run: |
-          test -f vendor/ort/ort.webgpu.bundle.min.mjs
-          test -f vendor/ort/ort-wasm-simd-threaded.asyncify.wasm
-          test -f vendor/human/human.esm.js
-          test -f vendor/human/tfjs-wasm/tfjs-backend-wasm.wasm
-          test -f models/human/blazeface.json
-          test -f models/human/blazeface.bin
-          test -f models/yolo11n.onnx
+      - name: Verify Pages bundle
+        run: npm run verify:pages
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CF_PAGES_ENABLE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-dist
+          path: dist/
+
+  deploy-pages:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CF_PAGES_ENABLE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pages-dist
+          path: dist
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=argus

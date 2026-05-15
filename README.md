@@ -8,7 +8,7 @@
 
 ## Continuous integration
 
-**`.github/workflows/ci.yml`** runs on `push` / `pull_request` to `main` or `master`: `npm ci`, `npm run model:fetch`, then verifies vendored ORT/Human files and `models/yolo11n.onnx`. Adjust branch filters if your default branch differs.
+**`.github/workflows/ci.yml`** runs on `push` / `pull_request` to `main` or `master`: `npm ci`, **`npm run build`** (YOLO weights + `dist/` bundle for Cloudflare Pages), then **`npm run verify:pages`**. [Dependabot](https://docs.github.com/en/code-security/dependabot) bumps npm and GitHub Actions on a schedule (see `.github/dependabot.yml`). Upgrade playbooks: [`docs/UPGRADING.md`](docs/UPGRADING.md). **Deploy:** [`docs/DEPLOY.md`](docs/DEPLOY.md). Adjust branch filters if your default branch differs.
 
 ## Features
 
@@ -32,7 +32,7 @@ npm run model:fetch        # downloads models/yolo11n.onnx (see models/README.md
 npm run dev                # http://localhost:8765/
 ```
 
-Open **`/`** for webcam. Static checks:
+Open **`/`** for webcam (local dev uses `server.mjs` for isolation headers; production uses Cloudflare `public/_headers` — see [`docs/DEPLOY.md`](docs/DEPLOY.md)). Static checks:
 
 | Page | Purpose |
 |------|---------|
@@ -50,6 +50,11 @@ argus/
   LICENSE                 # MIT — applies to this repo's source (not third-party weights)
   CONTRIBUTING.md
   .github/workflows/ci.yml
+  .github/dependabot.yml
+  docs/UPGRADING.md       # Dependency / weight bumps
+  docs/DEPLOY.md          # Cloudflare Pages (free) + optional GitHub deploy
+  public/_headers         # COOP/COEP/CORP for Pages (copied into dist/)
+  wrangler.toml           # Pages output dir + project name for Wrangler CLI
   src/
     app.js                 # rVFC/rAF loop, person + face pipelines, HUD
     detector/ort-loader.js, yolo.js
@@ -60,6 +65,8 @@ argus/
     vendor-ort.mjs        # Sync ORT web bundle → vendor/ort/
     vendor-human.mjs      # Stage Human ESM + BlazeFace + TFJS wasm → vendor/human/, models/human/
     fetch-model.mjs       # Download YOLO weights + SHA-256 verify
+    verify-vendor.mjs     # Assert vendor/* + models/* (repo root)
+    build-pages.mjs       # Assemble dist/ for Cloudflare Pages
   tests/
     yolo.html, face.html   # Manual sanity pages
   models/                  # Large binaries gitignored; see models/README.md
@@ -74,6 +81,9 @@ argus/
 | `npm run vendor:ort` | Copy `onnxruntime-web` dist into `vendor/ort/`. |
 | `npm run vendor:human` | Copy Human ESM, BlazeFace, TFJS wasm workers into `vendor/human/` and `models/human/`. |
 | `npm run model:fetch` | Download default YOLO ONNX into `models/`. |
+| `npm run verify:vendor` | Fail if vendored ORT/Human/TFJS or default YOLO weights are missing under repo root (after install + `model:fetch`). |
+| `npm run build` | Download default YOLO weights (if needed) and copy static assets into **`dist/`** for Cloudflare Pages. |
+| `npm run verify:pages` | Same file checks as `verify:vendor`, but under **`dist/`** (run after `build`). |
 
 `postinstall` runs **`vendor:ort`** then **`vendor:human`**.
 

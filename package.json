@@ -16,6 +16,9 @@
     "dev": "node server.mjs",
     "vendor:ort": "node scripts/vendor-ort.mjs",
     "vendor:human": "node scripts/vendor-human.mjs",
+    "verify:vendor": "node scripts/verify-vendor.mjs",
+    "verify:pages": "node scripts/verify-vendor.mjs dist",
+    "build": "npm run model:fetch && node scripts/build-pages.mjs",
     "model:fetch": "node scripts/fetch-model.mjs",
     "postinstall": "node scripts/vendor-ort.mjs && node scripts/vendor-human.mjs"
   },

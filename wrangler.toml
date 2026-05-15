@@ -1,0 +1,5 @@
+# Cloudflare Pages — https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+# Change `name` to your Pages project slug (must match dashboard / wrangler deploy --project-name).
+name = "argus"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
