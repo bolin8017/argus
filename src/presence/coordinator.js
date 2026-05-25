@@ -2,8 +2,17 @@
  * Presence alert coordinator — wires settings, state machine, and channels.
  */
 
-import { loadSettings, saveSettings, DEFAULTS } from './settings.js';
-import { PresenceState } from './state.js';
+import { loadSettings, saveSettings, DEFAULTS, ALERT_PRESETS } from './settings.js';
+import { PresenceState, trackCountsAsPerson } from './state.js';
+import { FacePresenceState } from './face-state.js';
+import {
+  ALERT_FACE,
+  ALERT_LABELS,
+  ALERT_NONE,
+  ALERT_PERSON,
+  AlertLevelState,
+  shouldSuppressPersonAlert,
+} from './alert-level.js';
 import { SoundChannel } from './channels/sound.js';
 import {
   fireNotification,
@@ -17,6 +26,8 @@ export class PresenceCoordinator {
   constructor() {
     /** @type {import('./settings.js').AlertSettings} */ this.settings = loadSettings();
     this.state = new PresenceState();
+    this.faceState = new FacePresenceState();
+    this.alertState = new AlertLevelState();
     this.sound = new SoundChannel();
     this.visual = new VisualChannel({
       stage: document.querySelector('.stage'),
@@ -36,6 +47,7 @@ export class PresenceCoordinator {
     const chSound = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-ch-sound'));
     const chNotif = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-ch-notification'));
     const chVisual = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-ch-visual'));
+    const mode = /** @type {HTMLSelectElement | null} */ (document.getElementById('alert-mode'));
     const frames = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-frames'));
     const minPersons = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-min-persons'));
     const interval = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-interval'));
@@ -44,8 +56,11 @@ export class PresenceCoordinator {
     );
     const minScore = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-min-score'));
     const leaveFrames = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-leave-frames'));
+    const faceWindow = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-face-window'));
+    const faceHits = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-face-hits'));
     const volume = /** @type {HTMLInputElement | null} */ (document.getElementById('alert-volume'));
     const testBtn = document.getElementById('alert-test-sound');
+    const testEvent = /** @type {HTMLSelectElement | null} */ (document.getElementById('alert-test-event'));
     const advToggle = document.getElementById('alert-advanced-toggle');
     const advPanel = document.getElementById('alert-advanced');
     const soundExtras = document.getElementById('alert-sound-extras');
@@ -56,12 +71,15 @@ export class PresenceCoordinator {
       if (chSound) chSound.checked = s.channels.sound;
       if (chNotif) chNotif.checked = s.channels.notification;
       if (chVisual) chVisual.checked = s.channels.visual;
+      if (mode) mode.value = s.alertMode;
       if (frames) frames.value = String(s.consecutiveFrames);
       if (minPersons) minPersons.value = String(s.minPersonCount);
       if (interval) interval.value = String(s.repeatIntervalSec);
       if (confirmedOnly) confirmedOnly.checked = s.useConfirmedOnly;
       if (minScore) minScore.value = String(s.minScore);
       if (leaveFrames) leaveFrames.value = s.leaveFrames == null ? '' : String(s.leaveFrames);
+      if (faceWindow) faceWindow.value = String(s.faceWindowMs);
+      if (faceHits) faceHits.value = String(s.faceHits);
       if (volume) volume.value = String(s.soundVolume);
       if (soundExtras) soundExtras.hidden = !s.channels.sound;
       this._refreshStatus(notifHint);
@@ -86,24 +104,39 @@ export class PresenceCoordinator {
     chVisual?.addEventListener('change', () => {
       persist({ channels: { ...this.settings.channels, visual: chVisual.checked } });
     });
+    mode?.addEventListener('change', () => {
+      const selected = mode.value;
+      const preset = ALERT_PRESETS[selected];
+      if (preset) {
+        persist({ alertMode: selected, ...preset });
+      } else {
+        persist({ alertMode: 'custom' });
+      }
+    });
     frames?.addEventListener('change', () => {
-      persist({ consecutiveFrames: Number(frames.value) });
+      persist({ alertMode: 'custom', consecutiveFrames: Number(frames.value) });
     });
     minPersons?.addEventListener('change', () => {
-      persist({ minPersonCount: Number(minPersons.value) });
+      persist({ alertMode: 'custom', minPersonCount: Number(minPersons.value) });
     });
     interval?.addEventListener('change', () => {
-      persist({ repeatIntervalSec: Number(interval.value) });
+      persist({ alertMode: 'custom', repeatIntervalSec: Number(interval.value) });
     });
     confirmedOnly?.addEventListener('change', () => {
-      persist({ useConfirmedOnly: confirmedOnly.checked });
+      persist({ alertMode: 'custom', useConfirmedOnly: confirmedOnly.checked });
     });
     minScore?.addEventListener('change', () => {
-      persist({ minScore: Number(minScore.value) });
+      persist({ alertMode: 'custom', minScore: Number(minScore.value) });
     });
     leaveFrames?.addEventListener('change', () => {
       const v = leaveFrames.value.trim();
-      persist({ leaveFrames: v === '' ? null : Number(v) });
+      persist({ alertMode: 'custom', leaveFrames: v === '' ? null : Number(v) });
+    });
+    faceWindow?.addEventListener('change', () => {
+      persist({ alertMode: 'custom', faceWindowMs: Number(faceWindow.value) });
+    });
+    faceHits?.addEventListener('change', () => {
+      persist({ alertMode: 'custom', faceHits: Number(faceHits.value) });
     });
     volume?.addEventListener('input', () => {
       persist({ soundVolume: Number(volume.value) });
@@ -111,7 +144,8 @@ export class PresenceCoordinator {
 
     testBtn?.addEventListener('click', async () => {
       await this.sound.unlock();
-      this.sound.play(this.settings.soundVolume);
+      const level = testEvent?.value === 'face' ? 'face' : 'person';
+      this.sound.play(this.settings.soundVolume, level);
       this._refreshStatus();
     });
 
@@ -150,30 +184,52 @@ export class PresenceCoordinator {
 
   /**
    * @param {import('../tracker/bytetrack-lite.js').Track[]} tracks
+   * @param {import('../pipeline/face.js').Face[]} faces
    */
-  tick(tracks) {
+  tick(tracks, faces = []) {
     if (!this._running) return;
 
-    const { fire, present } = this.state.tick(tracks, this.settings, performance.now());
+    const nowMs = performance.now();
+    const personResult = this.state.tick(tracks, this.settings, nowMs);
+    const qualifyingTrackIds = new Set(
+      tracks.filter((track) => trackCountsAsPerson(track, this.settings)).map((track) => track.id),
+    );
+    const faceResult = this.faceState.tick(faces, qualifyingTrackIds, this.settings, nowMs);
+    const actualLevel = faceResult.present
+      ? ALERT_FACE
+      : personResult.present
+        ? ALERT_PERSON
+        : ALERT_NONE;
+    const hasRecentFaceSample = this.faceState.hasRecentSamples(qualifyingTrackIds, this.settings, nowMs);
+    const firingLevel = shouldSuppressPersonAlert(
+      this.alertState.level,
+      actualLevel,
+      hasRecentFaceSample,
+    )
+      ? ALERT_NONE
+      : actualLevel;
+    const alertResult = this.alertState.tick(firingLevel, this.settings, nowMs);
 
     if (this.settings.channels.visual) {
-      this.visual.setPresent(present);
+      this.visual.setState(actualLevel, ALERT_LABELS[actualLevel]);
     } else {
       this.visual.clear();
     }
 
-    if (fire) this._fireChannels();
+    if (alertResult.fire) this._fireChannels(alertResult.level, alertResult.label);
   }
 
-  _fireChannels() {
+  _fireChannels(level, label) {
     const { channels, soundVolume } = this.settings;
-    if (channels.sound) this.sound.play(soundVolume);
-    if (channels.notification) fireNotification();
+    if (channels.sound) this.sound.play(soundVolume, level);
+    if (channels.notification) fireNotification(label);
   }
 
   stop() {
     this._running = false;
     this.state.reset();
+    this.faceState.reset();
+    this.alertState.reset();
     this.visual.clear();
   }
 

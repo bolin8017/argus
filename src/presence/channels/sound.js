@@ -24,14 +24,25 @@ export class SoundChannel {
 
   /**
    * @param {number} volume 0–1
+   * @param {'person' | 'face' | 'none'} level
    */
-  play(volume = 0.7) {
+  play(volume = 0.7, level = 'person') {
     if (!this.ctx || !this.unlocked) return;
-    const t0 = this.ctx.currentTime;
+    if (level === 'face') {
+      this._playTone(volume, 1046, 0);
+      this._playTone(volume, 1318, 0.13);
+      return;
+    }
+    this._playTone(volume, 740, 0);
+  }
+
+  _playTone(volume, frequency, offsetSec) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + offsetSec;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = 880;
+    osc.frequency.value = frequency;
     const v = Math.max(0, Math.min(1, volume));
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.exponentialRampToValueAtTime(v * 0.35, t0 + 0.01);

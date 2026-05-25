@@ -152,6 +152,9 @@
       .stage.presence-present {
         box-shadow: 0 0 0 2px var(--accent), 0 0 24px rgba(34, 211, 238, 0.25);
       }
+      .stage.presence-face {
+        box-shadow: 0 0 0 2px var(--danger), 0 0 24px rgba(248, 113, 113, 0.25);
+      }
 
       .presence-lamp {
         position: absolute;
@@ -175,12 +178,17 @@
         background: var(--muted);
         box-shadow: 0 0 0 2px rgba(154, 160, 166, 0.35);
       }
-      .presence-lamp[data-state="present"] .dot {
+      .presence-lamp[data-state="person"] .dot {
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
+      }
+      .presence-lamp[data-state="face"] .dot {
         background: var(--danger);
         box-shadow: 0 0 8px rgba(248, 113, 113, 0.7);
       }
-      .presence-lamp[data-state="present"] .label::after { content: '有人'; }
-      .presence-lamp[data-state="absent"] .label::after { content: '無人'; }
+      .presence-lamp[data-state="none"] .label::after { content: '無人'; }
+      .presence-lamp[data-state="person"] .label::after { content: '有人'; }
+      .presence-lamp[data-state="face"] .label::after { content: '偵測到臉'; }
 
       .alert-settings {
         max-width: 1280px;
@@ -209,8 +217,8 @@
         font-size: 0.88rem;
         cursor: pointer;
       }
-      .alert-row input[type="number"] {
-        width: 4.5rem;
+      .alert-row input[type="number"],
+      .alert-row select {
         padding: 4px 8px;
         border-radius: 4px;
         border: 1px solid #2a3140;
@@ -218,6 +226,7 @@
         color: var(--fg);
         font: inherit;
       }
+      .alert-row input[type="number"] { width: 4.5rem; }
       .alert-row input[type="range"] { width: 120px; }
       .alert-muted {
         color: var(--muted);
@@ -282,7 +291,7 @@
         <span class="k">active tracks</span>  <span class="v" id="hud-tracks">0</span>
         <span class="k">backend</span>        <span class="v" id="hud-backend">—</span>
       </div>
-      <div id="presence-lamp" class="presence-lamp" data-state="absent" aria-label="無人">
+      <div id="presence-lamp" class="presence-lamp" data-state="none" aria-label="無人">
         <span class="dot" aria-hidden="true"></span>
         <span class="label" aria-hidden="true"></span>
       </div>
@@ -303,23 +312,44 @@
         <label><input type="checkbox" id="alert-ch-visual" checked> 頁內燈號</label>
       </div>
       <div class="alert-row">
-        <label>連續幀數 <input type="number" id="alert-frames" min="1" max="30" value="1"></label>
-        <label>至少人數 <input type="number" id="alert-min-persons" min="1" max="20" value="1"></label>
-        <label>間隔秒數 <input type="number" id="alert-interval" min="0" max="300" value="10"></label>
-        <span class="alert-muted">至少人數 = 畫面上達標才通知；間隔 0 = 僅在無→有時提醒一次</span>
+        <label>
+          提醒模式
+          <select id="alert-mode">
+            <option value="quiet">安靜</option>
+            <option value="standard">標準</option>
+            <option value="sensitive">敏感</option>
+            <option value="custom">自訂</option>
+          </select>
+        </label>
+        <span class="alert-muted">一般使用建議選「標準」；細項調整後會變成「自訂」。</span>
       </div>
       <button type="button" id="alert-advanced-toggle" aria-expanded="false" aria-controls="alert-advanced">
         進階設定
       </button>
       <div id="alert-advanced" class="alert-advanced" hidden>
         <div class="alert-row">
+          <label>連續幀數 <input type="number" id="alert-frames" min="1" max="30" value="1"></label>
+          <label>至少人數 <input type="number" id="alert-min-persons" min="1" max="20" value="1"></label>
+          <label>間隔秒數 <input type="number" id="alert-interval" min="0" max="300" value="10"></label>
+          <span class="alert-muted">至少人數 = 畫面上達標才通知；間隔 0 = 僅在無→有時提醒一次</span>
+        </div>
+        <div class="alert-row">
           <label><input type="checkbox" id="alert-confirmed-only"> 僅使用已確認追蹤</label>
           <label>最低信心 <input type="number" id="alert-min-score" min="0" max="1" step="0.05" value="0.35"></label>
           <label>離開遲滯幀數 <input type="number" id="alert-leave-frames" min="1" max="60" placeholder="同連續幀數"></label>
+          <label>臉部時間窗 <input type="number" id="alert-face-window" min="250" max="10000" step="250" value="2000"> ms</label>
+          <label>臉部命中次數 <input type="number" id="alert-face-hits" min="1" max="20" value="2"></label>
         </div>
       </div>
       <div id="alert-sound-extras" class="alert-row">
         <label>音量 <input type="range" id="alert-volume" min="0" max="1" step="0.05" value="0.7"></label>
+        <label>
+          測試事件
+          <select id="alert-test-event">
+            <option value="person">有人</option>
+            <option value="face">偵測到臉</option>
+          </select>
+        </label>
         <button type="button" id="alert-test-sound">測試音</button>
       </div>
       <p id="alert-notif-hint" class="alert-hint" hidden>

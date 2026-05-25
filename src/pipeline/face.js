@@ -16,6 +16,7 @@
  * @property {number} y2
  * @property {number} score
  * @property {number} trackId
+ * @property {boolean} fresh true when produced by a detector run in this frame
  */
 
 export class FacePipeline {
@@ -126,7 +127,9 @@ export class FacePipeline {
       const lastIdx = track.lastFaceFrameIdx ?? -10_000_000;
       const due = frameIdx - lastIdx >= periodFrames;
       if (!due) {
-        if (track.lastFaces?.length) out.push(...track.lastFaces);
+        if (track.lastFaces?.length) {
+          out.push(...track.lastFaces.map((face) => ({ ...face, fresh: false })));
+        }
         continue;
       }
 
@@ -153,6 +156,7 @@ export class FacePipeline {
             y2: by + bh + sy,
             score: f.score ?? f.boxScore ?? 0,
             trackId: track.id,
+            fresh: true,
           });
         }
       }

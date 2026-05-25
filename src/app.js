@@ -191,12 +191,13 @@ async function onFrame(now /* , metadata */) {
       state.frameIdx += 1;
     } catch (err) {
       console.error('[app] detect failed:', err);
+      state.lastFaces = [];
     } finally {
       state.inflight = false;
     }
   }
 
-  if (state.running) presence.tick(state.lastTracks);
+  if (state.running) presence.tick(state.lastTracks, state.lastFaces);
 
   if (isVideoPreviewVisible()) {
     state.overlay?.drawTracks(state.lastTracks, state.lastFaces);
