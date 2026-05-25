@@ -1,6 +1,6 @@
 # Graded presence alert - design spec
 
-**Status:** Approved (2026-05-25)  
+**Status:** Implemented (2026-05-25, PR #5)
 **Product:** Argus - lightweight rear-facing presence alerts.  
 **Builds on:** `docs/superpowers/specs/2026-05-15-presence-alert-design.md`
 

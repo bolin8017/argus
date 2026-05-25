@@ -14,6 +14,7 @@
 
 - **Phase 1** — YOLO11n (ONNX) via `onnxruntime-web` (WebGPU → WASM), COCO class **person** only, **ByteTrack-Lite** (IoU + EMA) for stable boxes.
 - **Phase 2** — [`@vladmandic/human`](https://github.com/vladmandic/human) **BlazeFace** path only, throttled per track, TF.js **`wasm`** backend (local binaries, no CDN).
+- **Graded presence alerts** — browser-only sound, notification, and lamp states for `無人`, `有人`, and `偵測到臉`, with sensitivity presets plus advanced person/face thresholds.
 - **Mirror-safe UI** — CSS mirrors the preview video; models consume the **unmirrored** frame; overlay compensates so boxes line up with what you see.
 - **Offline-friendly** — Weights under `models/`, ORT + Human + TFJS WASM under `vendor/` (populated by `npm install` scripts).
 
@@ -39,6 +40,8 @@ Open **`/`** for webcam (local dev uses `server.mjs` for isolation headers; prod
 | [`/tests/yolo.html`](tests/yolo.html) | One-shot YOLO preprocess → ORT → NMS on a dropped image |
 | [`/tests/face.html`](tests/face.html) | Same **Phase 1 → Phase 2** path as `/` on a dropped image (`minHits: 1` so one frame can confirm) |
 
+Run `npm test` for Node-based unit tests around alert settings, state transitions, face freshness, and visual output.
+
 ## Repository layout
 
 ```
@@ -60,6 +63,7 @@ argus/
     detector/ort-loader.js, yolo.js
     tracker/bytetrack-lite.js
     pipeline/person.js, face.js
+    presence/              # Alert settings, person/face state, and channels
     ui/overlay.js
   scripts/
     vendor-ort.mjs        # Sync ORT web bundle → vendor/ort/
@@ -68,6 +72,7 @@ argus/
     verify-vendor.mjs     # Assert vendor/* + models/* (repo root)
     build-pages.mjs       # Assemble dist/ for Cloudflare Pages
   tests/
+    *.test.js              # Node unit tests for alert logic
     yolo.html, face.html   # Manual sanity pages
   models/                  # Large binaries gitignored; see models/README.md
   vendor/                  # Vendored runtimes gitignored; recreated by npm install
@@ -78,6 +83,7 @@ argus/
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Start `server.mjs` on port **8765** (override with `PORT`). |
+| `npm test` | Run Node unit tests for presence alert logic and channels. |
 | `npm run vendor:ort` | Copy `onnxruntime-web` dist into `vendor/ort/`. |
 | `npm run vendor:human` | Copy Human ESM, BlazeFace, TFJS wasm workers into `vendor/human/` and `models/human/`. |
 | `npm run model:fetch` | Download default YOLO ONNX into `models/`. |

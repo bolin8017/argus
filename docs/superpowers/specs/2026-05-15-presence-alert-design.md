@@ -1,6 +1,6 @@
 # Presence alert — design spec
 
-**Status:** Approved (2026-05-15)  
+**Status:** Implemented as the baseline alert system; superseded for current UI behavior by `docs/superpowers/specs/2026-05-25-graded-presence-alert-design.md`.
 **Product:** Argus — tell the user when someone is behind them (webcam / rear-facing use).  
 **Repo:** https://github.com/bolin8017/argus · deployed at https://argus-bnl.pages.dev/
 

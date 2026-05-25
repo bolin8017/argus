@@ -4,7 +4,7 @@ Argus is a small browser-only demo; contributions are welcome if they stay in sc
 
 ## Before you send a PR
 
-1. **Run the app locally** — `nvm use`, `npm ci` (or `npm install`), `npm run model:fetch`, `npm run verify:vendor`, `npm run dev`, then open `http://localhost:8765/`. For the same checks as CI (including the Cloudflare bundle), run `npm run build` and `npm run verify:pages`.
+1. **Run the app locally** — `nvm use`, `npm ci` (or `npm install`), `npm test`, `npm run model:fetch`, `npm run verify:vendor`, `npm run dev`, then open `http://localhost:8765/`. For the same checks as CI (including the Cloudflare bundle), run `npm run build` and `npm run verify:pages`.
 2. **Keep server headers intact** — do not weaken or remove `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` / `Cross-Origin-Resource-Policy` in `server.mjs` without a strong reason (threaded WASM depends on isolation).
 3. **No server-side inference** — detection runs in the browser only.
 4. **Offline assets** — avoid hard dependency on public CDNs for runtime; prefer `vendor/` and `models/`.
