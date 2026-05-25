@@ -1,29 +1,31 @@
 # Argus
 
-**Argus turns a webcam into a lightweight rear-view presence alert.** It detects people in the browser, raises the alert level when a face appears, and ships as a static web app.
+**Turn a webcam into a browser-only rear-view presence alert.**
 
-> 希臘神話裡永不闔眼的百眼巨人；在你看不到的地方，替你看著。
+Named after Argus Panoptes, the many-eyed watcher who never fully slept.
 
 [![CI](https://github.com/bolin8017/argus/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bolin8017/argus/actions/workflows/ci.yml)
 
-[Live demo](https://argus-bnl.pages.dev/) · [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Contribute](CONTRIBUTING.md)
+[繁體中文](docs/i18n/README.zh-TW.md) · [Live demo](https://argus-bnl.pages.dev/) · [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Contribute](CONTRIBUTING.md)
+
+Argus is a browser-only real-time vision project. It detects people locally, tracks person boxes across frames, upgrades the alert level when a face appears, and deploys as a static web app. No backend inference service, desktop agent, Python runtime, Docker image, or GPU driver setup is required.
 
 ## What It Does
 
-Argus watches the webcam feed locally and reports three factual states:
+Argus watches the webcam feed and reports three factual states:
 
-- `無人` — no qualifying person is present.
-- `有人` — a person is detected.
-- `偵測到臉` — the alert level upgrades when a face is visible inside a person track.
+- `無人`: no qualifying person is present.
+- `有人`: a person is detected.
+- `偵測到臉`: a face is detected inside a person region, so the alert level increases.
 
-Alerts can use an in-page sound, a system notification, and a visual lamp. Sensitivity presets keep the UI simple, while advanced settings expose person and face thresholds when needed.
+Alerts can use an in-page sound, a system notification, and a visual lamp. Sensitivity presets keep the UI approachable, while advanced settings expose person and face thresholds when needed.
 
 ## Why It Stands Out
 
-- **Browser-only ML:** no server inference, desktop agent, Python service, Docker image, or GPU driver setup.
-- **Two-stage vision pipeline:** YOLO11n finds people first; BlazeFace runs only inside person regions.
+- **Browser-only ML:** video stays in the browser; there is no server-side inference path.
+- **Two-stage vision pipeline:** YOLO11n finds people first; BlazeFace runs only inside person ROIs.
 - **Portfolio-ready engineering:** real-time video loop, tracker smoothing, alert state machines, unit tests, CI, and Cloudflare Pages deployment.
-- **Static deployment:** the live app is just HTML, JavaScript, vendored browser runtimes, model assets, and isolation headers.
+- **Static deployment:** the production app is HTML, JavaScript, vendored browser runtimes, model assets, and isolation headers.
 
 ## Try It
 
@@ -31,20 +33,20 @@ Open the live site and grant camera permission:
 
 **https://argus-bnl.pages.dev/**
 
-For the best demo, use a Chromium-class browser. Safari and Firefox fall back to WASM where supported. Keep the tab open; background audio and camera behavior vary by browser and OS.
+For the best demo, use a Chromium-class browser. Safari and Firefox fall back to WASM where supported. Keep the tab open; background audio, camera, and notification behavior vary by browser and OS.
 
-## How It Works
+## Architecture at a Glance
 
 ```text
 webcam frame
-  -> person detector (YOLO11n + ONNX Runtime Web)
-  -> track smoothing (ByteTrack-lite)
-  -> face detector inside person ROIs (Human / BlazeFace)
+  -> person detector: YOLO11n + ONNX Runtime Web
+  -> track smoothing: ByteTrack-lite
+  -> face detector: Human / BlazeFace inside person ROIs
   -> graded alert coordinator
   -> sound / notification / visual lamp
 ```
 
-The preview is mirrored for the user, but the models read the original frame. The overlay compensates so boxes line up with what you see.
+The preview is mirrored for the user, but the models read the original frame. The overlay compensates for the mirror transform so boxes line up with what you see.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full pipeline, repository layout, CI, asset handling, and runtime notes.
 
