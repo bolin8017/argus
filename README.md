@@ -1,114 +1,88 @@
 # Argus
 
-**Argus** is a browser-only, two-stage vision demo: **person detection** (Phase 1) then **face boxes inside each person ROI** (Phase 2). No Python, Docker, or GPU drivers—just a static page and a tiny static file server with cross-origin isolation headers for threaded WASM.
+**Argus turns a webcam into a lightweight rear-view presence alert.** It detects people in the browser, raises the alert level when a face appears, and ships as a static web app.
 
 > 希臘神話裡永不闔眼的百眼巨人；在你看不到的地方，替你看著。
 
 [![CI](https://github.com/bolin8017/argus/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bolin8017/argus/actions/workflows/ci.yml)
 
-**Live demo:** https://argus-bnl.pages.dev/
+[Live demo](https://argus-bnl.pages.dev/) · [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Contribute](CONTRIBUTING.md)
 
-## Continuous integration
+## What It Does
 
-**`.github/workflows/ci.yml`** runs on `push` / `pull_request` to `main` or `master`: `npm ci`, **`npm run build`** (YOLO weights + `dist/` bundle for Cloudflare Pages), then **`npm run verify:pages`**. [Dependabot](https://docs.github.com/en/code-security/dependabot) bumps npm and GitHub Actions on a schedule (see `.github/dependabot.yml`). Upgrade playbooks: [`docs/UPGRADING.md`](docs/UPGRADING.md). **Deploy:** [`docs/DEPLOY.md`](docs/DEPLOY.md). Adjust branch filters if your default branch differs.
+Argus watches the webcam feed locally and reports three factual states:
 
-## Features
+- `無人` — no qualifying person is present.
+- `有人` — a person is detected.
+- `偵測到臉` — the alert level upgrades when a face is visible inside a person track.
 
-- **Phase 1** — YOLO11n (ONNX) via `onnxruntime-web` (WebGPU → WASM), COCO class **person** only, **ByteTrack-Lite** (IoU + EMA) for stable boxes.
-- **Phase 2** — [`@vladmandic/human`](https://github.com/vladmandic/human) **BlazeFace** path only, throttled per track, TF.js **`wasm`** backend (local binaries, no CDN).
-- **Graded presence alerts** — browser-only sound, notification, and lamp states for `無人`, `有人`, and `偵測到臉`, with sensitivity presets plus advanced person/face thresholds.
-- **Mirror-safe UI** — CSS mirrors the preview video; models consume the **unmirrored** frame; overlay compensates so boxes line up with what you see.
-- **Offline-friendly** — Weights under `models/`, ORT + Human + TFJS WASM under `vendor/` (populated by `npm install` scripts).
+Alerts can use an in-page sound, a system notification, and a visual lamp. Sensitivity presets keep the UI simple, while advanced settings expose person and face thresholds when needed.
 
-## Requirements
+## Why It Stands Out
 
-- **Node.js** 20+ (repo targets **24** via `.nvmrc`).
-- **Chromium-class browser** recommended for WebGPU; Safari/Firefox fall back to WASM where supported.
+- **Browser-only ML:** no server inference, desktop agent, Python service, Docker image, or GPU driver setup.
+- **Two-stage vision pipeline:** YOLO11n finds people first; BlazeFace runs only inside person regions.
+- **Portfolio-ready engineering:** real-time video loop, tracker smoothing, alert state machines, unit tests, CI, and Cloudflare Pages deployment.
+- **Static deployment:** the live app is just HTML, JavaScript, vendored browser runtimes, model assets, and isolation headers.
 
-## Quick start
+## Try It
+
+Open the live site and grant camera permission:
+
+**https://argus-bnl.pages.dev/**
+
+For the best demo, use a Chromium-class browser. Safari and Firefox fall back to WASM where supported. Keep the tab open; background audio and camera behavior vary by browser and OS.
+
+## How It Works
+
+```text
+webcam frame
+  -> person detector (YOLO11n + ONNX Runtime Web)
+  -> track smoothing (ByteTrack-lite)
+  -> face detector inside person ROIs (Human / BlazeFace)
+  -> graded alert coordinator
+  -> sound / notification / visual lamp
+```
+
+The preview is mirrored for the user, but the models read the original frame. The overlay compensates so boxes line up with what you see.
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full pipeline, repository layout, CI, asset handling, and runtime notes.
+
+## Run Locally
 
 ```bash
-git clone https://github.com/bolin8017/argus.git && cd argus
+git clone https://github.com/bolin8017/argus.git
+cd argus
 nvm use                    # optional: Node 24 per .nvmrc
-npm install                # vendors ORT + Human + TFJS wasm into vendor/
-npm run model:fetch        # downloads models/yolo11n.onnx (see models/README.md)
+npm install                # vendors browser runtimes
+npm run model:fetch        # downloads YOLO weights
 npm run dev                # http://localhost:8765/
 ```
 
-Open **`/`** for webcam (local dev uses `server.mjs` for isolation headers; production uses Cloudflare `public/_headers` — see [`docs/DEPLOY.md`](docs/DEPLOY.md)). Static checks:
+Open `http://localhost:8765/` and allow webcam access.
 
-| Page | Purpose |
-|------|---------|
-| [`/tests/yolo.html`](tests/yolo.html) | One-shot YOLO preprocess → ORT → NMS on a dropped image |
-| [`/tests/face.html`](tests/face.html) | Same **Phase 1 → Phase 2** path as `/` on a dropped image (`minHits: 1` so one frame can confirm) |
+## Development
 
-Run `npm test` for Node-based unit tests around alert settings, state transitions, face freshness, and visual output.
-
-## Repository layout
-
-```
-argus/
-  index.html              # Main UI
-  server.mjs              # Static server + COOP/COEP/CORP (do not strip for WASM threads)
-  package.json
-  .nvmrc
-  LICENSE                 # MIT — applies to this repo's source (not third-party weights)
-  CONTRIBUTING.md
-  .github/workflows/ci.yml
-  .github/dependabot.yml
-  docs/UPGRADING.md       # Dependency / weight bumps
-  docs/DEPLOY.md          # Cloudflare Pages (free) + optional GitHub deploy
-  public/_headers         # COOP/COEP/CORP for Pages (copied into dist/)
-  wrangler.toml           # Pages output dir + project name for Wrangler CLI
-  src/
-    app.js                 # rVFC/rAF loop, person + face pipelines, HUD
-    detector/ort-loader.js, yolo.js
-    tracker/bytetrack-lite.js
-    pipeline/person.js, face.js
-    presence/              # Alert settings, person/face state, and channels
-    ui/overlay.js
-  scripts/
-    vendor-ort.mjs        # Sync ORT web bundle → vendor/ort/
-    vendor-human.mjs      # Stage Human ESM + BlazeFace + TFJS wasm → vendor/human/, models/human/
-    fetch-model.mjs       # Download YOLO weights + SHA-256 verify
-    verify-vendor.mjs     # Assert vendor/* + models/* (repo root)
-    build-pages.mjs       # Assemble dist/ for Cloudflare Pages
-  tests/
-    *.test.js              # Node unit tests for alert logic
-    yolo.html, face.html   # Manual sanity pages
-  models/                  # Large binaries gitignored; see models/README.md
-  vendor/                  # Vendored runtimes gitignored; recreated by npm install
+```bash
+npm test
+npm run build
+npm run verify:pages
 ```
 
-## Scripts
+Manual sanity pages:
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start `server.mjs` on port **8765** (override with `PORT`). |
-| `npm test` | Run Node unit tests for presence alert logic and channels. |
-| `npm run vendor:ort` | Copy `onnxruntime-web` dist into `vendor/ort/`. |
-| `npm run vendor:human` | Copy Human ESM, BlazeFace, TFJS wasm workers into `vendor/human/` and `models/human/`. |
-| `npm run model:fetch` | Download default YOLO ONNX into `models/`. |
-| `npm run verify:vendor` | Fail if vendored ORT/Human/TFJS or default YOLO weights are missing under repo root (after install + `model:fetch`). |
-| `npm run build` | Download default YOLO weights (if needed) and copy static assets into **`dist/`** for Cloudflare Pages. |
-| `npm run verify:pages` | Same file checks as `verify:vendor`, but under **`dist/`** (run after `build`). |
+- [`/tests/yolo.html`](tests/yolo.html) — one-shot YOLO preprocess, inference, and NMS on a dropped image.
+- [`/tests/face.html`](tests/face.html) — the same person-to-face path as the main app on a dropped image.
 
-`postinstall` runs **`vendor:ort`** then **`vendor:human`**.
+## Docs
 
-## Third-party licenses
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — pipeline, repo layout, scripts, CI, and runtime assets.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Cloudflare Pages and tunnel-based demos.
+- [`docs/UPGRADING.md`](docs/UPGRADING.md) — dependency, model, and vendored asset updates.
+- [`models/README.md`](models/README.md) — model download, weights, and license notes.
 
-| Component | License | Notes |
-|-----------|---------|--------|
-| This repository (TS/JS you see here) | **MIT** | [`LICENSE`](LICENSE) |
-| Default YOLO11n ONNX weights | **AGPL-3.0** | See [`models/README.md`](models/README.md); swap weights if AGPL is a problem for you. |
-| [`@vladmandic/human`](https://github.com/vladmandic/human) | **MIT** | BlazeFace weights vendored from the npm package. |
-| [`onnxruntime-web`](https://github.com/microsoft/onnxruntime) | **MIT** | Vendored WASM/JS. |
-| TensorFlow.js WASM backend | **Apache-2.0** | Vendored alongside Human. |
+## License and Safety
 
-## Contributing
+Source code in this repository is MIT licensed. The default YOLO11n ONNX weights are AGPL-3.0; see [`models/README.md`](models/README.md) before redistributing or shipping a derived product.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Disclaimer
-
-This project is **personal / educational** quality—not a commercial analytics product. Use at your own risk; do not rely on it for safety-critical decisions.
+Argus is a personal and educational demo, not a safety-critical monitoring system.
