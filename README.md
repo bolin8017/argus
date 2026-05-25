@@ -6,6 +6,8 @@
 
 [![CI](https://github.com/bolin8017/argus/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bolin8017/argus/actions/workflows/ci.yml)
 
+**Live demo:** https://argus-bnl.pages.dev/
+
 ## Continuous integration
 
 **`.github/workflows/ci.yml`** runs on `push` / `pull_request` to `main` or `master`: `npm ci`, **`npm run build`** (YOLO weights + `dist/` bundle for Cloudflare Pages), then **`npm run verify:pages`**. [Dependabot](https://docs.github.com/en/code-security/dependabot) bumps npm and GitHub Actions on a schedule (see `.github/dependabot.yml`). Upgrade playbooks: [`docs/UPGRADING.md`](docs/UPGRADING.md). **Deploy:** [`docs/DEPLOY.md`](docs/DEPLOY.md). Adjust branch filters if your default branch differs.
