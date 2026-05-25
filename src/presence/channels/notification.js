@@ -26,12 +26,12 @@ export async function requestNotificationPermission() {
 /**
  * Fire a minimal notification when permission is granted.
  */
-export function fireNotification() {
+export function fireNotification(label = '') {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   try {
     const n = new Notification(APP_TITLE, {
-      body: '',
+      body: label,
       silent: false,
       tag: 'argus-presence',
       renotify: true,

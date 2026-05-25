@@ -9,23 +9,24 @@ export class VisualChannel {
   constructor(els = {}) {
     this.stage = els.stage ?? null;
     this.lamp = els.lamp ?? null;
-    this._present = false;
+    this._level = 'none';
   }
 
-  /** @param {boolean} present */
-  setPresent(present) {
-    if (this._present === present) return;
-    this._present = present;
+  setState(level, label) {
+    if (this._level === level) return;
+    this._level = level;
+    const active = level !== 'none';
     if (this.stage) {
-      this.stage.classList.toggle('presence-present', present);
+      this.stage.classList.toggle('presence-present', active);
+      this.stage.classList.toggle('presence-face', level === 'face');
     }
     if (this.lamp) {
-      this.lamp.dataset.state = present ? 'present' : 'absent';
-      this.lamp.setAttribute('aria-label', present ? '有人' : '無人');
+      this.lamp.dataset.state = level;
+      this.lamp.setAttribute('aria-label', label);
     }
   }
 
   clear() {
-    this.setPresent(false);
+    this.setState('none', '無人');
   }
 }
