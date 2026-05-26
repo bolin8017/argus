@@ -91,3 +91,17 @@ test('reset clears stored samples', () => {
 
   assert.equal(result.present, false);
 });
+
+test('does not qualify face alerts until the person count threshold is met', () => {
+  const state = new FacePresenceState();
+  const qualifying = new Set([7]);
+  const faces = [{ trackId: 7, fresh: true }];
+
+  state.tick(faces, qualifying, settings, 1000, false);
+  const belowThreshold = state.tick(faces, qualifying, settings, 1600, false);
+  assert.equal(belowThreshold.present, false);
+  assert.equal(state.hasRecentSamples(qualifying, settings, 1600, false), false);
+
+  assert.equal(state.tick(faces, qualifying, settings, 2000, true).present, false);
+  assert.equal(state.tick(faces, qualifying, settings, 2600, true).present, true);
+});

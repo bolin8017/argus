@@ -3,7 +3,7 @@
  */
 
 import { loadSettings, saveSettings, DEFAULTS, ALERT_PRESETS } from './settings.js';
-import { PresenceState, trackCountsAsPerson } from './state.js';
+import { PresenceState, meetsPersonThreshold, trackCountsAsPerson } from './state.js';
 import { FacePresenceState } from './face-state.js';
 import {
   ALERT_FACE,
@@ -116,9 +116,11 @@ export class PresenceCoordinator {
     frames?.addEventListener('change', () => {
       persist({ alertMode: 'custom', consecutiveFrames: Number(frames.value) });
     });
-    minPersons?.addEventListener('change', () => {
+    const persistMinPersons = () => {
       persist({ alertMode: 'custom', minPersonCount: Number(minPersons.value) });
-    });
+    };
+    minPersons?.addEventListener('change', persistMinPersons);
+    minPersons?.addEventListener('input', persistMinPersons);
     interval?.addEventListener('change', () => {
       persist({ alertMode: 'custom', repeatIntervalSec: Number(interval.value) });
     });
@@ -190,17 +192,29 @@ export class PresenceCoordinator {
     if (!this._running) return;
 
     const nowMs = performance.now();
+    const personThresholdMet = meetsPersonThreshold(tracks, this.settings);
     const personResult = this.state.tick(tracks, this.settings, nowMs);
     const qualifyingTrackIds = new Set(
       tracks.filter((track) => trackCountsAsPerson(track, this.settings)).map((track) => track.id),
     );
-    const faceResult = this.faceState.tick(faces, qualifyingTrackIds, this.settings, nowMs);
+    const faceResult = this.faceState.tick(
+      faces,
+      qualifyingTrackIds,
+      this.settings,
+      nowMs,
+      personThresholdMet,
+    );
     const actualLevel = faceResult.present
       ? ALERT_FACE
       : personResult.present
         ? ALERT_PERSON
         : ALERT_NONE;
-    const hasRecentFaceSample = this.faceState.hasRecentSamples(qualifyingTrackIds, this.settings, nowMs);
+    const hasRecentFaceSample = this.faceState.hasRecentSamples(
+      qualifyingTrackIds,
+      this.settings,
+      nowMs,
+      personThresholdMet,
+    );
     const firingLevel = shouldSuppressPersonAlert(
       this.alertState.level,
       actualLevel,

@@ -17,9 +17,10 @@ export class FacePresenceState {
    * @param {Set<number>} qualifyingTrackIds
    * @param {{ faceWindowMs: number, faceHits: number }} settings
    * @param {number} nowMs
+   * @param {boolean} [personThresholdMet=true] when false, keep pruning but do not record or qualify face alerts
    * @returns {{ present: boolean }}
    */
-  tick(faces, qualifyingTrackIds, settings, nowMs) {
+  tick(faces, qualifyingTrackIds, settings, nowMs, personThresholdMet = true) {
     const windowStart = nowMs - settings.faceWindowMs;
 
     for (const [trackId, samples] of this.samplesByTrackId) {
@@ -31,21 +32,23 @@ export class FacePresenceState {
       }
     }
 
-    const recordedTrackIds = new Set();
-    for (const face of faces) {
-      if (!face.fresh) continue;
-      if (!qualifyingTrackIds.has(face.trackId)) continue;
-      if (recordedTrackIds.has(face.trackId)) continue;
-      recordedTrackIds.add(face.trackId);
-      const samples = this.samplesByTrackId.get(face.trackId) ?? [];
-      samples.push(nowMs);
-      this.samplesByTrackId.set(face.trackId, samples);
-    }
+    if (personThresholdMet) {
+      const recordedTrackIds = new Set();
+      for (const face of faces) {
+        if (!face.fresh) continue;
+        if (!qualifyingTrackIds.has(face.trackId)) continue;
+        if (recordedTrackIds.has(face.trackId)) continue;
+        recordedTrackIds.add(face.trackId);
+        const samples = this.samplesByTrackId.get(face.trackId) ?? [];
+        samples.push(nowMs);
+        this.samplesByTrackId.set(face.trackId, samples);
+      }
 
-    for (const trackId of qualifyingTrackIds) {
-      const samples = this.samplesByTrackId.get(trackId) ?? [];
-      if (samples.length >= settings.faceHits) {
-        return { present: true };
+      for (const trackId of qualifyingTrackIds) {
+        const samples = this.samplesByTrackId.get(trackId) ?? [];
+        if (samples.length >= settings.faceHits) {
+          return { present: true };
+        }
       }
     }
 
@@ -57,7 +60,8 @@ export class FacePresenceState {
    * @param {{ faceWindowMs: number }} settings
    * @param {number} nowMs
    */
-  hasRecentSamples(qualifyingTrackIds, settings, nowMs) {
+  hasRecentSamples(qualifyingTrackIds, settings, nowMs, personThresholdMet = true) {
+    if (!personThresholdMet) return false;
     const windowStart = nowMs - settings.faceWindowMs;
     for (const trackId of qualifyingTrackIds) {
       const samples = this.samplesByTrackId.get(trackId) ?? [];
